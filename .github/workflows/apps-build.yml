@@ -1,13 +1,13 @@
 name: Apps tab build
 
-# builds the exe for the apps-tab branch and keeps it as a downloadable artifact
+# builds the exe and publishes it as the apps-tab-latest release, so it can be fetched with a plain link
 on:
   push:
     branches: [main, apps-tab]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -32,3 +32,10 @@ jobs:
           path: |
             build/Astraeus.exe
             build/Astraeus.exe.sha256
+      - name: Publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apps-tab-latest --yes --cleanup-tag 2>$null
+          gh release create apps-tab-latest build/Astraeus.exe build/Astraeus.exe.sha256 --title "Apps + Wave Link tabs" --notes "Built from $env:GITHUB_SHA" --target $env:GITHUB_SHA
