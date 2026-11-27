@@ -24,62 +24,55 @@ Follow-ups work for 30 minutes ("now make it read-only"). Use `/claude-reset` to
 
 ---
 
-## Setup (about 15 minutes)
+## Setup (about 10 minutes)
 
-### 1. Create the Discord bot
-1. Go to <https://discord.com/developers/applications> and click **New Application**.
-2. **Bot** tab → **Reset Token** → copy it. This is `DISCORD_TOKEN`. Keep it secret.
-3. Same tab → **Privileged Gateway Intents** → turn on **Server Members Intent**. It's needed to look up members.
-4. Turn off **Public Bot** so nobody else can add it to their server.
+You need two things only you can create, then the setup wizard does the rest.
 
-### 2. Invite it to your server
-Replace `APP_ID` with the **Application ID** from the General Information tab and open the URL:
+### 1. Create the Discord bot (2 min)
+1. Go to <https://discord.com/developers/applications> and click **New Application**. Name it.
+2. **Bot** tab:
+   - Click **Reset Token**, then copy the token.
+   - Turn **Server Members Intent** ON and click **Save**.
+   - Turn **Public Bot** OFF.
 
-```
-https://discord.com/oauth2/authorize?client_id=APP_ID&scope=bot%20applications.commands&permissions=8866461766385655
-```
+### 2. Get a Claude API key (1 min)
+<https://console.anthropic.com> → **API Keys** → **Create Key**, then copy it. API usage is billed separately
+from a Claude.ai subscription.
 
-That grants every permission **except Administrator**. Why so many: Discord only lets a bot give out
-permissions it already has. If you want Claude to hand out a permission, the bot needs it too.
+### 3. Download and start
+Get the `discord-admin-bot` folder from this repo (**Code → Download ZIP** on GitHub, then unzip it). Then:
 
-If you only want channel and role management plus moderation, use `permissions=1099780131894` instead.
-Claude will then get "missing permission" errors when it tries to grant anything outside that set.
+| Your computer | Do this |
+|---|---|
+| **Windows** | Install [Python 3.11+](https://www.python.org/downloads/) and tick **"Add python.exe to PATH"**. Then double-click **`start-windows.bat`**. |
+| **Mac / Linux / Raspberry Pi** | In a terminal, inside the folder: `./start.sh` |
 
-### 3. Put the bot's role near the top
-**Server Settings → Roles** → drag the bot's role **above** every role you want it to manage. The bot can't
-touch roles above its own, or members whose highest role is above it.
+The first run opens the **setup wizard**:
+1. Paste the bot token. It checks the token, and that the Members intent is on.
+2. Confirm your user ID. It reads this from the app's owner, so you don't need Developer Mode.
+3. Paste the API key. It checks the key.
+4. **Open the invite link it prints and click Authorize.** Then press Enter, and it finds your server.
 
-### 4. Get your IDs
-Discord **Settings → Advanced → Developer Mode** on. Then:
-- Right-click (long-press on phone) **your name** → *Copy User ID*. This is `OWNER_IDS`.
-- Right-click **your server icon** → *Copy Server ID*. This is `GUILD_IDS`.
+Settings are saved to `.env`. Later runs go straight to starting the bot. To redo setup, run
+`python -m admin_bot setup` or delete `.env`.
 
-### 5. Get a Claude API key
-<https://console.anthropic.com> → **API Keys** → create a key. This is `ANTHROPIC_API_KEY`. API usage
-is billed separately from a Claude.ai subscription.
+### 4. Move the bot's role up
+**Server Settings → Roles** → drag the bot's role **above** every role it should manage. The bot can't
+touch roles above its own. The bot's log warns you if it's too low.
 
-### 6. Run it
-The bot has to stay running, so use a computer that's always on, a small VPS, or a Raspberry Pi.
+When the log says `Ready. Type /claude in your server.`, you're done.
 
-```bash
-cp .env.example .env      # then fill in the four required values
-```
+### Keeping it running
+The bot only works while that window or terminal is open. For 24/7:
+- **Windows:** leave the window open, or add `start-windows.bat` to Task Scheduler with the "At log on" trigger.
+- **Any machine with Docker:** run setup once (`./start.sh` or `python -m admin_bot setup`), then
+  `docker compose up -d`. It restarts by itself after a crash or reboot.
 
-**Docker (recommended)**
-```bash
-docker build -t claude-admin-bot .
-docker run -d --name claude-admin-bot --restart unless-stopped --env-file .env claude-admin-bot
-docker logs -f claude-admin-bot
-```
-
-**Plain Python 3.11+**
-```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-python -m admin_bot
-```
-
-When the log shows `Synced 2 command(s)`, type `/claude` in your server.
+### About the invite permissions
+The invite link asks for every permission **except Administrator**. Discord only lets a bot hand out
+permissions it has itself, so this is what "manage my roles" needs. If you want a narrower bot, replace
+the number in the link with `1099780131894` (channels, roles and moderation only). Claude will then get
+"missing permission" errors when it tries to grant anything outside that set.
 
 ---
 

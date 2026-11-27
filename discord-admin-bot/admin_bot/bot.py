@@ -47,6 +47,39 @@ def format_actions(actions: list[PendingAction], limit: int = 1800) -> str:
     return text
 
 
+def startup_problems(client: discord.Client, settings: Settings) -> list[str]:
+    """Plain-English warnings about setup mistakes, logged when the bot connects."""
+    from .setup_wizard import invite_url
+
+    problems: list[str] = []
+    for guild_id in settings.guild_ids:
+        guild = client.get_guild(guild_id)
+        if guild is None:
+            app_id = client.application_id or (client.user.id if client.user else "APP_ID")
+            problems.append(f"Bot is not in server {guild_id}. Add it with: {invite_url(str(app_id))}")
+            continue
+        me = guild.me
+        perms = me.guild_permissions
+        missing = [
+            p
+            for p in ("manage_channels", "manage_roles", "view_channel", "send_messages")
+            if not getattr(perms, p)
+        ]
+        if missing:
+            problems.append(f"[{guild.name}] Bot is missing permissions: {', '.join(missing)}. Re-invite it with the setup link.")
+        manageable = [r for r in guild.roles if not r.is_default() and not r.managed]
+        above = [r.name for r in manageable if r >= me.top_role and r != me.top_role]
+        if above:
+            shown = ", ".join(above[:5]) + ("…" if len(above) > 5 else "")
+            problems.append(
+                f"[{guild.name}] The bot's role is below {len(above)} role(s) ({shown}); it can't manage those. "
+                "Server Settings > Roles > drag the bot's role higher."
+            )
+        if guild.owner_id not in settings.owner_ids:
+            problems.append(f"[{guild.name}] Note: the server owner isn't in OWNER_IDS, so they can't use /claude.")
+    return problems
+
+
 class ConfirmView(discord.ui.View):
     def __init__(self, owner_id: int, timeout: float):
         super().__init__(timeout=timeout)
@@ -129,9 +162,9 @@ class AdminBot(discord.Client):
 
     async def on_ready(self) -> None:
         log.info("Logged in as %s (%s)", self.user, getattr(self.user, "id", "?"))
-        for guild_id in self.settings.guild_ids:
-            if self.get_guild(guild_id) is None:
-                log.warning("Bot is not in guild %s - invite it with the URL from the README.", guild_id)
+        for problem in startup_problems(self, self.settings):
+            log.warning(problem)
+        log.info("Ready. Type /claude in your server.")
 
     async def _send(self, interaction: discord.Interaction, content: str, **kwargs) -> discord.Message | None:
         """Send an ephemeral followup; fall back to DM if the interaction token expired (15 min)."""

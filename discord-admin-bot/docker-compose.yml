@@ -1,0 +1,8 @@
+# Always-on deployment on any machine with Docker:
+#   python -m admin_bot setup   (once, to create .env; or copy .env.example and fill it in)
+#   docker compose up -d
+services:
+  bot:
+    build: .
+    env_file: .env
+    restart: unless-stopped
